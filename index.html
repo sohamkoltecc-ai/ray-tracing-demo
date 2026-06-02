@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nova Engine Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #1e1e1e;
+      --bg-2: #252526;
+      --bg-3: #2d2d30;
+      --bg-4: #333337;
+      --panel: #2b2b2b;
+      --panel-2: #303033;
+      --panel-3: #38383d;
+      --panel-hover: #404046;
+      --text: #e6e6e6;
+      --muted: #b0b0b0;
+      --border: #171717;
+      --line: #454545;
+      --accent: #3a8ee6;
+      --accent-soft: rgba(58, 142, 230, 0.18);
+      --success: #57b35e;
+      --danger: #cb5a5e;
+      --yellow: #d4a33c;
+      --shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+      --left-panel: 260px;
+      --right-panel: 320px;
+      --bottom-panel: 210px;
+      --center-split: 0.56fr;
+      --toolbar-h: 34px;
+      --menubar-h: 26px;
+      --splitter: 5px;
+      --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    #app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: var(--menubar-h) var(--toolbar-h) 1fr;
+      background: var(--bg);
+    }
+
+    .menubar,
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-2);
+    }
+
+    .menubar {
+      justify-content: space-between;
+    }
+
+    .menu-left,
+    .menu-right,
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .toolbar {
+      justify-content: space-between;
+      background: linear-gradient(180deg, #3a3a3d, #2e2e31);
+    }
+
+    .menu-item,
+    .tool-btn,
+    .scene-chip,
+    .status-chip {
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .menu-item:hover,
+    .tool-btn:hover,
+    .scene-chip:hover {
+      background: #3c3c41;
+      border-color: #505055;
+    }
+
+    .tool-btn {
+      background: linear-gradient(180deg, #505055, #434348);
+      border-color: #222;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      min-width: 26px;
+      justify-content: center;
+      font-weight: 600;
+    }
+
+    .tool-btn.play {
+      background: linear-gradient(180deg, #4b6d43, #355234);
+    }
+
+    .tool-btn.stop {
+      background: linear-gradient(180deg, #6f4747, #583737);
+    }
+
+    .tool-btn.active {
+      outline: 1px solid #83b8ff;
+      background: linear-gradient(180deg, #4d77b8, #355786);
+    }
+
+    .status-chip {
+      background: #1f1f21;
+      border-color: #111;
+      color: var(--muted);
+      cursor: default;
+    }
+
+    .engine-shell {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) var(--splitter) var(--bottom-panel);
+    }
+
+    .top-workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--left-panel) var(--splitter) minmax(0, 1fr) var(--splitter) var(--right-panel);
+    }
+
+    .center-stack {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .viewport-stack {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(320px, var(--center-split)) var(--splitter) minmax(320px, 1fr);
+    }
+
+    .splitter {
+      background: #1c1c1d;
+      position: relative;
+      z-index: 3;
+    }
+
+    .splitter.vertical {
+      cursor: col-resize;
+      border-left: 1px solid #111;
+      border-right: 1px solid #111;
+    }
+
+    .splitter.horizontal {
+      cursor: row-resize;
+      border-top: 1px solid #111;
+      border-bottom: 1px solid #111;
+    }
+
+    .splitter:hover,
+    .splitter.active {
+      background: #2f5d8f;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 24px 1fr;
+      background: var(--panel);
+      border-top: 1px solid #3a3a3c;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 8px;
+      background: linear-gradient(180deg, #38383d, #303034);
+      border-bottom: 1px solid #1b1b1d;
+      font-size: 11px;
+    }
+
+    .panel-header .tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tab {
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: 3px 3px 0 0;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .tab.active {
+      background: #2b2b2b;
+      color: var(--text);
+      border: 1px solid #161616;
+      border-bottom-color: #2b2b2b;
+    }
+
+    .panel-body {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      background: var(--panel);
+    }
+
+    .tree,
+    .component-list,
+    .console-list {
+      display: grid;
+      gap: 1px;
+      padding: 4px;
+    }
+
+    .tree-item,
+    .asset-item,
+    .console-item,
+    .component-card {
+      display: grid;
+      gap: 2px;
+      padding: 5px 8px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .tree-item:hover,
+    .asset-item:hover,
+    .component-card:hover {
+      background: var(--panel-hover);
+    }
+
+    .tree-item.active,
+    .asset-item.active {
+      background: var(--accent-soft);
+      border-color: rgba(58, 142, 230, 0.3);
+    }
+
+    .tree-item strong,
+    .asset-item strong,
+    .component-card strong,
+    .console-item strong {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tree-item span,
+    .asset-item span,
+    .component-card span,
+    .console-item span,
+    .subtle,
+    .empty-state {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .viewport-wrap {
+      position: relative;
+      min-height: 0;
+      background: #202124;
+    }
+
+    .viewport-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .viewport-topbar {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .overlay-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .overlay-pill {
+      padding: 3px 8px;
+      border-radius: 3px;
+      background: rgba(33, 33, 35, 0.9);
+      border: 1px solid rgba(255,255,255,0.09);
+      font-size: 11px;
+      color: #d8d8d8;
+      backdrop-filter: blur(8px);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #1a1a1b;
+    }
+
+    .inspector-scroll {
+      display: grid;
+      gap: 6px;
+      padding: 6px;
+    }
+
+    .section {
+      border: 1px solid #202022;
+      background: var(--panel-2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .section-title {
+      height: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      background: linear-gradient(180deg, #3a3a3f, #323237);
+      border-bottom: 1px solid #1b1b1d;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0.01em;
+    }
+
+    .section-body {
+      display: grid;
+      gap: 6px;
+      padding: 8px;
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .field label {
+      color: #d0d0d0;
+      font-size: 11px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      height: 22px;
+      border: 1px solid #151516;
+      background: #1f1f21;
+      color: var(--text);
+      border-radius: 2px;
+      padding: 0 6px;
+      outline: none;
+    }
+
+    .vector3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+
+    .asset-layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 160px 1fr;
+    }
+
+    .asset-sidebar {
+      border-right: 1px solid #1b1b1d;
+      padding: 4px;
+      display: grid;
+      gap: 1px;
+      background: #262629;
+    }
+
+    .asset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 6px;
+      padding: 8px;
+      align-content: start;
+    }
+
+    .asset-item {
+      min-height: 72px;
+      align-content: start;
+      background: #2f2f33;
+      border: 1px solid #202022;
+    }
+
+    .folder-item {
+      padding: 5px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .folder-item:hover,
+    .folder-item.active {
+      background: #3a3a3e;
+    }
+
+    .console-item {
+      border-left: 2px solid transparent;
+      background: #2c2c30;
+      cursor: default;
+    }
+
+    .console-item.info { border-left-color: var(--accent); }
+    .console-item.success { border-left-color: var(--success); }
+    .console-item.warn { border-left-color: var(--yellow); }
+    .console-item.error { border-left-color: var(--danger); }
+
+    .empty-state {
+      padding: 8px;
+    }
+
+    @media (max-width: 1100px) {
+      html, body {
+        overflow: auto;
+      }
+
+      #app {
+        height: auto;
+        min-height: 100%;
+      }
+
+      .engine-shell {
+        grid-template-rows: auto;
+      }
+
+      .top-workspace,
+      .viewport-stack,
+      .asset-layout {
+        display: block;
+      }
+
+      .splitter {
+        display: none;
+      }
+
+      .panel {
+        min-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="menubar">
+      <div class="menu-left">
+        <div class="menu-item">File</div>
+        <div class="menu-item">Edit</div>
+        <div class="menu-item">Assets</div>
+        <div class="menu-item">GameObject</div>
+        <div class="menu-item">Component</div>
+        <div class="menu-item">Window</div>
+        <div class="menu-item">Help</div>
+      </div>
+      <div class="menu-right">
+        <div class="status-chip" id="engineStatus">Edit Mode</div>
+        <div class="status-chip" id="frameStatus">Scene: 0 entities</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button class="tool-btn active" id="toolMoveBtn">Move</button>
+        <button class="tool-btn" id="toolRotateBtn">Rotate</button>
+        <button class="tool-btn" id="toolScaleBtn">Scale</button>
+        <button class="tool-btn" id="focusBtn">Focus</button>
+      </div>
+      <div class="toolbar-center">
+        <button class="tool-btn play" id="runBtn">Run</button>
+        <button class="tool-btn" id="pauseBtn">Pause</button>
+        <button class="tool-btn stop" id="stopBtn">Stop</button>
+      </div>
+      <div class="toolbar-right">
+        <button class="tool-btn" id="addEntityBtn">Add Entity</button>
+        <button class="tool-btn" id="duplicateBtn">Duplicate</button>
+        <div class="status-chip" id="runtimeChip">Runtime: Stopped</div>
+        <div class="status-chip" id="fpsChip">Frame: 0.0 ms</div>
+      </div>
+    </div>
+
+    <div class="engine-shell">
+      <div class="top-workspace">
+        <section class="panel">
+          <div class="panel-header">
+            <div class="tabs">
+              <div class="tab active">Hierarchy</div>
+            </div>
+            <div class="subtle">Scene Entities</div>
+          </div>
+          <div class="panel-body">
+            <div class="tree" id="hierarchyList"></div>
+          </div>
+        </section>
+
+        <div class="splitter vertical" data-split="left"></div>
+
+        <section class="center-stack">
+          <div class="viewport-stack">
+            <section class="panel">
+              <div class="panel-header">
+                <div class="tabs">
+                  <div class="tab active">Scene</div>
+                </div>
+                <div class="subtle">Alt+Drag orbit, Right drag pan, Wheel zoom</div>
+              </div>
+              <div class="panel-body viewport-wrap">
+                <canvas id="sceneCanvas"></canvas>
+                <div class="viewport-overlay">
+                  <div class="viewport-topbar">
+                    <div class="overlay-row">
+                      <div class="overlay-pill" id="sceneSelectionChip">Selection: None</div>
+                      <div class="overlay-pill" id="toolChip">Tool: Move</div>
+                    </div>
+                    <div class="overlay-row">
+                      <div class="overlay-pill">Shaded</div>
+                      <div class="overlay-pill">Perspective</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div class="splitter vertical" data-split="center"></div>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div class="tabs">
+                  <div class="tab active">Game</div>
+                </div>
+                <div class="subtle">Ray-traced-style starter runtime</div>
+              </div>
+              <div class="panel-body viewport-wrap">
+                <canvas id="gameCanvas"></canvas>
+                <div class="viewport-overlay">
+                  <div class="viewport-topbar">
+                    <div class="overlay-row">
+                      <div class="overlay-pill">Main Camera</div>
+                      <div class="overlay-pill" id="sceneModeChip">Edit</div>
+                    </div>
+                    <div class="overlay-row">
+                      <div class="overlay-pill">Stats On</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <div class="splitter vertical" data-split="right"></div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="tabs">
+              <div class="tab active">Inspector</div>
+            </div>
+            <div class="subtle">Components</div>
+          </div>
+          <div class="panel-body">
+            <div class="inspector-scroll" id="inspectorContent"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="splitter horizontal" data-split="bottom"></div>
+
+      <div class="top-workspace" style="grid-template-columns: minmax(0,1fr) var(--splitter) minmax(0,0.9fr);">
+        <section class="panel">
+          <div class="panel-header">
+            <div class="tabs">
+              <div class="tab active">Project</div>
+            </div>
+            <div class="subtle">Assets</div>
+          </div>
+          <div class="panel-body asset-layout">
+            <div class="asset-sidebar" id="assetFolders"></div>
+            <div class="asset-grid" id="assetGrid"></div>
+          </div>
+        </section>
+
+        <div class="splitter vertical" style="cursor: default;"></div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="tabs">
+              <div class="tab active">Console</div>
+              <div class="tab">Components</div>
+            </div>
+            <div class="subtle">Messages + ECS summary</div>
+          </div>
+          <div class="panel-body">
+            <div class="component-list" id="componentList" style="padding: 4px 4px 0;"></div>
+            <div class="console-list" id="consoleList" style="padding: 4px;"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const sceneCanvas = document.getElementById('sceneCanvas');
+      const gameCanvas = document.getElementById('gameCanvas');
+      const sceneCtx = sceneCanvas.getContext('2d');
+      const gameCtx = gameCanvas.getContext('2d', { alpha: false });
+      const rtCanvas = document.createElement('canvas');
+      const rtCtx = rtCanvas.getContext('2d');
+
+      const hierarchyList = document.getElementById('hierarchyList');
+      const inspectorContent = document.getElementById('inspectorContent');
+      const componentList = document.getElementById('componentList');
+      const assetFolders = document.getElementById('assetFolders');
+      const assetGrid = document.getElementById('assetGrid');
+      const consoleList = document.getElementById('consoleList');
+
+      const engineStatus = document.getElementById('engineStatus');
+      const frameStatus = document.getElementById('frameStatus');
+      const runtimeChip = document.getElementById('runtimeChip');
+      const fpsChip = document.getElementById('fpsChip');
+      const sceneSelectionChip = document.getElementById('sceneSelectionChip');
+      const toolChip = document.getElementById('toolChip');
+      const sceneModeChip = document.getElementById('sceneModeChip');
+
+      const runBtn = document.getElementById('runBtn');
+      const pauseBtn = document.getElementById('pauseBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const addEntityBtn = document.getElementById('addEntityBtn');
+      const duplicateBtn = document.getElementById('duplicateBtn');
+      const toolMoveBtn = document.getElementById('toolMoveBtn');
+      const toolRotateBtn = document.getElementById('toolRotateBtn');
+      const toolScaleBtn = document.getElementById('toolScaleBtn');
+      const focusBtn = document.getElementById('focusBtn');
+
+      const state = {
+        mode: 'editor',
+        selectedEntityId: null,
+        selectedAssetId: 'mat-glass-blue',
+        selectedFolder: 'All',
+        nextEntityId: 10,
+        nextLogId: 1,
+        tool: 'move',
+        runtime: {
+          paused: false,
+          frameMs: 0
+        },
+        sceneView: {
+          target: { x: 0, y: 0, z: 0 },
+          yaw: Math.PI * 0.78,
+          pitch: -0.48,
+          distance: 8.6
+        },
+        pointer: {
+          action: null,
+          startX: 0,
+          startY: 0,
+          entityId: null,
+          startTarget: null,
+          startYaw: 0,
+          startPitch: 0,
+          startDistance: 0,
+          startPos: null,
+          startRotationY: 0,
+          startScale: null
+        },
+        folders: ['All', 'Meshes', 'Materials', 'Prefabs', 'Scripts'],
+        assets: [
+          { id: 'mesh-sphere', folder: 'Meshes', type: 'Mesh', name: 'Sphere Primitive', detail: 'Reflective test primitive' },
+          { id: 'mesh-box', folder: 'Meshes', type: 'Mesh', name: 'Cube Primitive', detail: 'Blockout geometry piece' },
+          { id: 'mesh-plane', folder: 'Meshes', type: 'Mesh', name: 'Plane Primitive', detail: 'Ground starter mesh' },
+          { id: 'mat-glass-blue', folder: 'Materials', type: 'Material', name: 'Glass Blue', detail: 'Cool glossy hero surface' },
+          { id: 'mat-gold', folder: 'Materials', type: 'Material', name: 'Gold Alloy', detail: 'High metallic specular finish' },
+          { id: 'mat-floor', folder: 'Materials', type: 'Material', name: 'Studio Floor', detail: 'Soft bounce matte material' },
+          { id: 'prefab-pedestal', folder: 'Prefabs', type: 'Prefab', name: 'Pedestal Cluster', detail: 'Starter showcase layout' },
+          { id: 'script-spin', folder: 'Scripts', type: 'Script', name: 'SpinMotion.ts', detail: 'Minimal runtime component sample' }
+        ],
+        logs: [],
+        world: { entities: [] }
+      };
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function deepClone(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function addVec(a, b) {
+        return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+      }
+
+      function subVec(a, b) {
+        return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+      }
+
+      function mulVec(a, s) {
+        return { x: a.x * s, y: a.y * s, z: a.z * s };
+      }
+
+      function dot(a, b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+      }
+
+      function cross(a, b) {
+        return {
+          x: a.y * b.z - a.z * b.y,
+          y: a.z * b.x - a.x * b.z,
+          z: a.x * b.y - a.y * b.x
+        };
+      }
+
+      function lengthVec(v) {
+        return Math.hypot(v.x, v.y, v.z);
+      }
+
+      function normalize(v) {
+        const len = lengthVec(v) || 1;
+        return { x: v.x / len, y: v.y / len, z: v.z / len };
+      }
+
+      function reflect(v, n) {
+        const k = 2 * dot(v, n);
+        return subVec(v, mulVec(n, k));
+      }
+
+      function hexToRgb(hex) {
+        const v = parseInt(hex.slice(1), 16);
+        return {
+          r: ((v >> 16) & 255) / 255,
+          g: ((v >> 8) & 255) / 255,
+          b: (v & 255) / 255
+        };
+      }
+
+      function addLog(type, message) {
+        state.logs.unshift({
+          id: state.nextLogId++,
+          type,
+          message,
+          time: new Date().toLocaleTimeString()
+        });
+        state.logs = state.logs.slice(0, 20);
+        renderConsole();
+      }
+
+      function createEntity(name, components) {
+        const entity = {
+          id: state.nextEntityId++,
+          name,
+          enabled: true,
+          components: components || {}
+        };
+        state.world.entities.push(entity);
+        return entity;
+      }
+
+      function bootstrapScene() {
+        state.world.entities = [];
+        state.nextEntityId = 10;
+
+        createEntity('Main Camera', {
+          transform: {
+            position: { x: 0, y: 2.6, z: 6.6 },
+            rotation: { x: -8, y: 180, z: 0 },
+            scale: { x: 1, y: 1, z: 1 }
+          },
+          camera: { fov: 43, exposure: 1.12 }
+        });
+
+        createEntity('Directional Light', {
+          transform: {
+            position: { x: -2.8, y: 5.2, z: 3.6 },
+            rotation: { x: -35, y: 25, z: 0 },
+            scale: { x: 1, y: 1, z: 1 }
+          },
+          light: { color: '#fff0ce', intensity: 1.45 }
+        });
+
+        createEntity('Studio Floor', {
+          transform: {
+            position: { x: 0, y: -1.2, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: { x: 8.5, y: 1, z: 8.5 }
+          },
+          mesh: { primitive: 'plane' },
+          material: { color: '#bcc8d7', roughness: 0.72, metallic: 0.04, emission: 0.0 }
+        });
+
+        createEntity('Hero Sphere', {
+          transform: {
+            position: { x: -1.45, y: -0.15, z: 0.55 },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: { x: 0.95, y: 0.95, z: 0.95 }
+          },
+          mesh: { primitive: 'sphere' },
+          material: { color: '#7fd0ff', roughness: 0.16, metallic: 0.08, emission: 0.0 },
+          script: { type: 'spin', speed: 24 }
+        });
+
+        createEntity('Gold Cube', {
+          transform: {
+            position: { x: 1.3, y: -0.45, z: -0.35 },
+            rotation: { x: 0, y: 32, z: 0 },
+            scale: { x: 1.1, y: 1.1, z: 1.1 }
+          },
+          mesh: { primitive: 'box' },
+          material: { color: '#d4af67', roughness: 0.24, metallic: 0.88, emission: 0.0 }
+        });
+
+        createEntity('Emitter Orb', {
+          transform: {
+            position: { x: 0.2, y: 0.95, z: -1.8 },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: { x: 0.42, y: 0.42, z: 0.42 }
+          },
+          mesh: { primitive: 'sphere' },
+          material: { color: '#fff1b6', roughness: 0.0, metallic: 0.0, emission: 1.8 }
+        });
+
+        state.selectedEntityId = state.world.entities[0].id;
+      }
+
+      function getEntityById(id) {
+        return state.world.entities.find((entity) => entity.id === id) || null;
+      }
+
+      function getSelectedEntity() {
+        return getEntityById(state.selectedEntityId);
+      }
+
+      function componentNames(entity) {
+        return Object.keys(entity.components);
+      }
+
+      function renderHierarchy() {
+        hierarchyList.innerHTML = '';
+        state.world.entities.forEach((entity) => {
+          const item = document.createElement('div');
+          item.className = `tree-item${entity.id === state.selectedEntityId ? ' active' : ''}`;
+          item.innerHTML = `<strong>${entity.name}</strong><span>${componentNames(entity).join(', ')}</span>`;
+          item.addEventListener('click', () => {
+            state.selectedEntityId = entity.id;
+            renderAllPanels();
+          });
+          hierarchyList.appendChild(item);
+        });
+      }
+
+      function renderAssets() {
+        assetFolders.innerHTML = '';
+        state.folders.forEach((folder) => {
+          const item = document.createElement('div');
+          item.className = `folder-item${folder === state.selectedFolder ? ' active' : ''}`;
+          item.textContent = folder;
+          item.addEventListener('click', () => {
+            state.selectedFolder = folder;
+            renderAssets();
+          });
+          assetFolders.appendChild(item);
+        });
+
+        assetGrid.innerHTML = '';
+        state.assets
+          .filter((asset) => state.selectedFolder === 'All' || asset.folder === state.selectedFolder)
+          .forEach((asset) => {
+            const item = document.createElement('div');
+            item.className = `asset-item${asset.id === state.selectedAssetId ? ' active' : ''}`;
+            item.innerHTML = `<strong>${asset.name}</strong><span>${asset.type} · ${asset.detail}</span>`;
+            item.addEventListener('click', () => {
+              state.selectedAssetId = asset.id;
+              renderAssets();
+            });
+            assetGrid.appendChild(item);
+          });
+      }
+
+      function renderConsole() {
+        consoleList.innerHTML = '';
+        state.logs.forEach((log) => {
+          const item = document.createElement('div');
+          item.className = `console-item ${log.type}`;
+          item.innerHTML = `<strong>${log.time}</strong><span>${log.message}</span>`;
+          consoleList.appendChild(item);
+        });
+      }
+
+      function makeField(labelText, input) {
+        const field = document.createElement('div');
+        field.className = 'field';
+        const label = document.createElement('label');
+        label.textContent = labelText;
+        field.append(label, input);
+        return field;
+      }
+
+      function createSection(title) {
+        const section = document.createElement('div');
+        section.className = 'section';
+        section.innerHTML = `<div class="section-title">${title}</div><div class="section-body"></div>`;
+        return section;
+      }
+
+      function sectionBody(section) {
+        return section.querySelector('.section-body');
+      }
+
+      function bindTextField(parent, labelText, value, onChange) {
+        const input = document.createElement('input');
+        input.value = value;
+        input.addEventListener('change', () => {
+          onChange(input.value);
+          renderAllPanels();
+        });
+        parent.appendChild(makeField(labelText, input));
+      }
+
+      function bindNumberField(parent, labelText, value, onChange, step = '0.01') {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = step;
+        input.value = value;
+        input.addEventListener('change', () => {
+          onChange(parseFloat(input.value) || 0);
+          renderAllPanels();
+        });
+        parent.appendChild(makeField(labelText, input));
+      }
+
+      function bindColorField(parent, labelText, value, onChange) {
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = value;
+        input.addEventListener('input', () => {
+          onChange(input.value);
+          renderAllPanels();
+        });
+        parent.appendChild(makeField(labelText, input));
+      }
+
+      function bindVector3(parent, title, vector) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'field';
+        const label = document.createElement('label');
+        label.textContent = title;
+        const container = document.createElement('div');
+        container.className = 'vector3';
+        ['x', 'y', 'z'].forEach((axis) => {
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.step = '0.01';
+          input.value = vector[axis];
+          input.addEventListener('change', () => {
+            vector[axis] = parseFloat(input.value) || 0;
+            renderAllPanels();
+          });
+          container.appendChild(input);
+        });
+        wrapper.append(label, container);
+        parent.appendChild(wrapper);
+      }
+
+      function renderInspector() {
+        inspectorContent.innerHTML = '';
+        const entity = getSelectedEntity();
+        if (!entity) {
+          inspectorContent.innerHTML = '<div class="empty-state">No entity selected.</div>';
+          return;
+        }
+
+        const entitySection = createSection('Entity');
+        const entityBody = sectionBody(entitySection);
+        bindTextField(entityBody, 'Name', entity.name, (value) => { entity.name = value || 'Entity'; });
+        const enabledSelect = document.createElement('select');
+        enabledSelect.innerHTML = '<option value="true">Enabled</option><option value="false">Disabled</option>';
+        enabledSelect.value = entity.enabled ? 'true' : 'false';
+        enabledSelect.addEventListener('change', () => {
+          entity.enabled = enabledSelect.value === 'true';
+          renderAllPanels();
+        });
+        entityBody.appendChild(makeField('State', enabledSelect));
+        inspectorContent.appendChild(entitySection);
+
+        if (entity.components.transform) {
+          const section = createSection('Transform');
+          const body = sectionBody(section);
+          bindVector3(body, 'Position', entity.components.transform.position);
+          bindVector3(body, 'Rotation', entity.components.transform.rotation);
+          bindVector3(body, 'Scale', entity.components.transform.scale);
+          inspectorContent.appendChild(section);
+        }
+
+        if (entity.components.mesh) {
+          const section = createSection('Mesh');
+          const body = sectionBody(section);
+          const select = document.createElement('select');
+          ['sphere', 'box', 'plane'].forEach((primitive) => {
+            const option = document.createElement('option');
+            option.value = primitive;
+            option.textContent = primitive;
+            select.appendChild(option);
+          });
+          select.value = entity.components.mesh.primitive;
+          select.addEventListener('change', () => {
+            entity.components.mesh.primitive = select.value;
+            renderAllPanels();
+          });
+          body.appendChild(makeField('Primitive', select));
+          inspectorContent.appendChild(section);
+        }
+
+        if (entity.components.material) {
+          const section = createSection('Material');
+          const body = sectionBody(section);
+          bindColorField(body, 'Color', entity.components.material.color, (value) => { entity.components.material.color = value; });
+          bindNumberField(body, 'Roughness', entity.components.material.roughness, (value) => { entity.components.material.roughness = clamp(value, 0, 1); });
+          bindNumberField(body, 'Metallic', entity.components.material.metallic, (value) => { entity.components.material.metallic = clamp(value, 0, 1); });
+          bindNumberField(body, 'Emission', entity.components.material.emission, (value) => { entity.components.material.emission = clamp(value, 0, 4); });
+          inspectorContent.appendChild(section);
+        }
+
+        if (entity.components.light) {
+          const section = createSection('Light');
+          const body = sectionBody(section);
+          bindColorField(body, 'Color', entity.components.light.color, (value) => { entity.components.light.color = value; });
+          bindNumberField(body, 'Intensity', entity.components.light.intensity, (value) => { entity.components.light.intensity = clamp(value, 0, 4); });
+          inspectorContent.appendChild(section);
+        }
+
+        if (entity.components.camera) {
+          const section = createSection('Camera');
+          const body = sectionBody(section);
+          bindNumberField(body, 'FOV', entity.components.camera.fov, (value) => { entity.components.camera.fov = clamp(value, 20, 90); }, '1');
+          bindNumberField(body, 'Exposure', entity.components.camera.exposure, (value) => { entity.components.camera.exposure = clamp(value, 0.2, 3); });
+          inspectorContent.appendChild(section);
+        }
+
+        if (entity.components.script) {
+          const section = createSection('Script');
+          const body = sectionBody(section);
+          bindTextField(body, 'Type', entity.components.script.type, (value) => { entity.components.script.type = value; });
+          bindNumberField(body, 'Speed', entity.components.script.speed, (value) => { entity.components.script.speed = value; });
+          inspectorContent.appendChild(section);
+        }
+      }
+
+      function renderComponents() {
+        componentList.innerHTML = '';
+        const entity = getSelectedEntity();
+        if (!entity) {
+          componentList.innerHTML = '<div class="empty-state">No entity selected.</div>';
+          return;
+        }
+        componentNames(entity).forEach((name) => {
+          const data = entity.components[name];
+          const card = document.createElement('div');
+          card.className = 'component-card';
+          card.innerHTML = `<strong>${name}</strong><span>${Object.keys(data).join(', ')}</span>`;
+          componentList.appendChild(card);
+        });
+      }
+
+      function updateStatusLabels() {
+        const entity = getSelectedEntity();
+        engineStatus.textContent = state.mode === 'play'
+          ? (state.runtime.paused ? 'Play Mode Paused' : 'Play Mode')
+          : 'Edit Mode';
+        frameStatus.textContent = `Scene: ${state.world.entities.length} entities`;
+        runtimeChip.textContent = `Runtime: ${state.mode === 'play' ? (state.runtime.paused ? 'Paused' : 'Running') : 'Stopped'}`;
+        fpsChip.textContent = `Frame: ${state.runtime.frameMs.toFixed(1)} ms`;
+        sceneSelectionChip.textContent = entity ? `Selection: ${entity.name}` : 'Selection: None';
+        toolChip.textContent = `Tool: ${state.tool[0].toUpperCase()}${state.tool.slice(1)}`;
+        sceneModeChip.textContent = state.mode === 'play' ? 'Play' : 'Edit';
+        [toolMoveBtn, toolRotateBtn, toolScaleBtn].forEach((btn) => btn.classList.remove('active'));
+        if (state.tool === 'move') toolMoveBtn.classList.add('active');
+        if (state.tool === 'rotate') toolRotateBtn.classList.add('active');
+        if (state.tool === 'scale') toolScaleBtn.classList.add('active');
+      }
+
+      function renderAllPanels() {
+        renderHierarchy();
+        renderInspector();
+        renderComponents();
+        renderAssets();
+        updateStatusLabels();
+      }
+
+      function resizeCanvasToDisplaySize(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(1, Math.floor(rect.width));
+        const height = Math.max(1, Math.floor(rect.height));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+      }
+
+      function getSceneCameraBasis() {
+        const cp = Math.cos(state.sceneView.pitch);
+        const sp = Math.sin(state.sceneView.pitch);
+        const cy = Math.cos(state.sceneView.yaw);
+        const sy = Math.sin(state.sceneView.yaw);
+
+        const forward = normalize({
+          x: cp * sy,
+          y: sp,
+          z: cp * cy
+        });
+        const right = normalize(cross({ x: 0, y: 1, z: 0 }, forward));
+        const up = normalize(cross(forward, right));
+        const eye = addVec(state.sceneView.target, mulVec(forward, state.sceneView.distance));
+        return { eye, forward, right, up };
+      }
+
+      function worldToScreen(point, canvas, basis) {
+        const rect = canvas.getBoundingClientRect();
+        const rel = subVec(point, basis.eye);
+        const cx = dot(rel, basis.right);
+        const cy = dot(rel, basis.up);
+        const cz = dot(rel, mulVec(basis.forward, -1));
+        if (cz <= 0.1) return null;
+        const f = 520 / cz;
+        return {
+          x: rect.width * 0.5 + cx * f,
+          y: rect.height * 0.5 - cy * f,
+          depth: cz
+        };
+      }
+
+      function sceneRayFromScreen(clientX, clientY) {
+        const rect = sceneCanvas.getBoundingClientRect();
+        const basis = getSceneCameraBasis();
+        const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+        const ny = 1 - ((clientY - rect.top) / rect.height) * 2;
+        const dir = normalize(addVec(addVec(mulVec(basis.right, nx), mulVec(basis.up, ny)), mulVec(basis.forward, -1.45)));
+        return { origin: basis.eye, dir, basis };
+      }
+
+      function rayPlaneIntersectionY(ray, planeY = 0) {
+        if (Math.abs(ray.dir.y) < 1e-5) return null;
+        const t = (planeY - ray.origin.y) / ray.dir.y;
+        if (t <= 0) return null;
+        return addVec(ray.origin, mulVec(ray.dir, t));
+      }
+
+      function drawLine3D(a, b, basis, strokeStyle, width = 1) {
+        const pa = worldToScreen(a, sceneCanvas, basis);
+        const pb = worldToScreen(b, sceneCanvas, basis);
+        if (!pa || !pb) return;
+        sceneCtx.strokeStyle = strokeStyle;
+        sceneCtx.lineWidth = width;
+        sceneCtx.beginPath();
+        sceneCtx.moveTo(pa.x, pa.y);
+        sceneCtx.lineTo(pb.x, pb.y);
+        sceneCtx.stroke();
+      }
+
+      function drawSceneGrid(basis) {
+        for (let i = -12; i <= 12; i += 1) {
+          const color = i === 0 ? 'rgba(90,160,255,0.22)' : 'rgba(255,255,255,0.06)';
+          drawLine3D({ x: -12, y: 0, z: i }, { x: 12, y: 0, z: i }, basis, color);
+          drawLine3D({ x: i, y: 0, z: -12 }, { x: i, y: 0, z: 12 }, basis, color);
+        }
+      }
+
+      function drawWireCube(center, size, basis, selected) {
+        const sx = Math.max(0.2, size.x * 0.5);
+        const sy = Math.max(0.2, size.y * 0.5);
+        const sz = Math.max(0.2, size.z * 0.5);
+        const pts = [
+          { x: center.x - sx, y: center.y - sy, z: center.z - sz },
+          { x: center.x + sx, y: center.y - sy, z: center.z - sz },
+          { x: center.x + sx, y: center.y + sy, z: center.z - sz },
+          { x: center.x - sx, y: center.y + sy, z: center.z - sz },
+          { x: center.x - sx, y: center.y - sy, z: center.z + sz },
+          { x: center.x + sx, y: center.y - sy, z: center.z + sz },
+          { x: center.x + sx, y: center.y + sy, z: center.z + sz },
+          { x: center.x - sx, y: center.y + sy, z: center.z + sz }
+        ];
+        const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+        edges.forEach(([a, b]) => drawLine3D(pts[a], pts[b], basis, selected ? '#ffd27a' : 'rgba(220,220,220,0.8)', selected ? 1.7 : 1));
+      }
+
+      function drawSceneView() {
+        resizeCanvasToDisplaySize(sceneCanvas);
+        const width = sceneCanvas.width;
+        const height = sceneCanvas.height;
+        const basis = getSceneCameraBasis();
+
+        const sky = sceneCtx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, '#24272f');
+        sky.addColorStop(1, '#1a1b1e');
+        sceneCtx.fillStyle = sky;
+        sceneCtx.fillRect(0, 0, width, height);
+        drawSceneGrid(basis);
+
+        state.world.entities.forEach((entity) => {
+          if (!entity.enabled || !entity.components.transform) return;
+          const t = entity.components.transform;
+          const selected = entity.id === state.selectedEntityId;
+          const mesh = entity.components.mesh ? entity.components.mesh.primitive : 'empty';
+
+          if (mesh === 'sphere') {
+            const p = worldToScreen(t.position, sceneCanvas, basis);
+            if (!p) return;
+            const rim = worldToScreen(addVec(t.position, { x: Math.max(0.2, t.scale.x), y: 0, z: 0 }), sceneCanvas, basis);
+            const radius = rim ? Math.abs(rim.x - p.x) : 10;
+            sceneCtx.beginPath();
+            sceneCtx.arc(p.x, p.y, Math.max(6, radius), 0, Math.PI * 2);
+            sceneCtx.fillStyle = selected ? 'rgba(255, 210, 122, 0.16)' : 'rgba(110, 210, 255, 0.12)';
+            sceneCtx.strokeStyle = selected ? '#ffd27a' : 'rgba(220,220,220,0.8)';
+            sceneCtx.lineWidth = selected ? 1.8 : 1;
+            sceneCtx.fill();
+            sceneCtx.stroke();
+          } else if (mesh === 'box') {
+            drawWireCube(t.position, t.scale, basis, selected);
+          } else if (mesh === 'plane') {
+            drawWireCube({ x: t.position.x, y: t.position.y + 0.02, z: t.position.z }, { x: t.scale.x, y: 0.02, z: t.scale.z }, basis, selected);
+          }
+
+          const anchor = worldToScreen(t.position, sceneCanvas, basis);
+          if (anchor) {
+            sceneCtx.fillStyle = selected ? '#ffe1a9' : '#d7d7d7';
+            sceneCtx.font = '12px Segoe UI';
+            sceneCtx.fillText(entity.name, anchor.x + 8, anchor.y - 10);
+          }
+        });
+      }
+
+      function mixColor(a, b, t) {
+        return { r: lerp(a.r, b.r, t), g: lerp(a.g, b.g, t), b: lerp(a.b, b.b, t) };
+      }
+
+      function mulColor(a, s) {
+        return { r: a.r * s, g: a.g * s, b: a.b * s };
+      }
+
+      function addColor(a, b) {
+        return { r: a.r + b.r, g: a.g + b.g, b: a.b + b.b };
+      }
+
+      function skyColor(dir) {
+        const t = clamp(0.5 + dir.y * 0.5, 0, 1);
+        return mixColor({ r: 0.95, g: 0.76, b: 0.58 }, { r: 0.38, g: 0.55, b: 0.78 }, t);
+      }
+
+      function buildRuntimeScene() {
+        const cameraEntity = state.world.entities.find((entity) => entity.components.camera && entity.enabled);
+        const lightEntity = state.world.entities.find((entity) => entity.components.light && entity.enabled);
+        const camera = cameraEntity
+          ? {
+              position: deepClone(cameraEntity.components.transform.position),
+              rotationY: (cameraEntity.components.transform.rotation.y || 0) * Math.PI / 180,
+              fov: cameraEntity.components.camera.fov,
+              exposure: cameraEntity.components.camera.exposure
+            }
+          : { position: { x: 0, y: 2.4, z: 6.2 }, rotationY: Math.PI, fov: 42, exposure: 1.0 };
+        const light = lightEntity
+          ? {
+              position: deepClone(lightEntity.components.transform.position),
+              color: hexToRgb(lightEntity.components.light.color),
+              intensity: lightEntity.components.light.intensity
+            }
+          : { position: { x: -2, y: 4, z: 3 }, color: { r: 1, g: 0.95, b: 0.85 }, intensity: 1.2 };
+        const shapes = [];
+        state.world.entities.forEach((entity) => {
+          if (!entity.enabled || !entity.components.mesh || !entity.components.material || !entity.components.transform) return;
+          const t = entity.components.transform;
+          const m = entity.components.material;
+          shapes.push({
+            primitive: entity.components.mesh.primitive,
+            position: deepClone(t.position),
+            scale: deepClone(t.scale),
+            material: {
+              color: hexToRgb(m.color),
+              roughness: m.roughness,
+              metallic: m.metallic,
+              emission: m.emission
+            }
+          });
+        });
+        return { camera, light, shapes };
+      }
+
+      function intersectSphere(rayOrigin, rayDir, center, radius) {
+        const oc = subVec(rayOrigin, center);
+        const a = dot(rayDir, rayDir);
+        const b = 2 * dot(oc, rayDir);
+        const c = dot(oc, oc) - radius * radius;
+        const disc = b * b - 4 * a * c;
+        if (disc < 0) return null;
+        const sq = Math.sqrt(disc);
+        let t = (-b - sq) / (2 * a);
+        if (t <= 0.001) t = (-b + sq) / (2 * a);
+        if (t <= 0.001) return null;
+        const hit = addVec(rayOrigin, mulVec(rayDir, t));
+        return { t, hit, normal: normalize(subVec(hit, center)) };
+      }
+
+      function intersectPlane(rayOrigin, rayDir, y) {
+        if (Math.abs(rayDir.y) < 1e-5) return null;
+        const t = (y - rayOrigin.y) / rayDir.y;
+        if (t <= 0.001) return null;
+        const hit = addVec(rayOrigin, mulVec(rayDir, t));
+        return { t, hit, normal: { x: 0, y: 1, z: 0 } };
+      }
+
+      function intersectBox(rayOrigin, rayDir, center, halfSize) {
+        const min = { x: center.x - halfSize.x, y: center.y - halfSize.y, z: center.z - halfSize.z };
+        const max = { x: center.x + halfSize.x, y: center.y + halfSize.y, z: center.z + halfSize.z };
+        let tmin = -Infinity;
+        let tmax = Infinity;
+        ['x', 'y', 'z'].forEach((axis) => {
+          const inv = 1 / (rayDir[axis] || 1e-6);
+          let t1 = (min[axis] - rayOrigin[axis]) * inv;
+          let t2 = (max[axis] - rayOrigin[axis]) * inv;
+          if (t1 > t2) {
+            const temp = t1;
+            t1 = t2;
+            t2 = temp;
+          }
+          tmin = Math.max(tmin, t1);
+          tmax = Math.min(tmax, t2);
+        });
+        if (tmax < Math.max(tmin, 0.001)) return null;
+        const t = tmin > 0.001 ? tmin : tmax;
+        const hit = addVec(rayOrigin, mulVec(rayDir, t));
+        const e = 1e-3;
+        let normal = { x: 0, y: 0, z: 1 };
+        if (Math.abs(hit.x - min.x) < e) normal = { x: -1, y: 0, z: 0 };
+        else if (Math.abs(hit.x - max.x) < e) normal = { x: 1, y: 0, z: 0 };
+        else if (Math.abs(hit.y - min.y) < e) normal = { x: 0, y: -1, z: 0 };
+        else if (Math.abs(hit.y - max.y) < e) normal = { x: 0, y: 1, z: 0 };
+        else if (Math.abs(hit.z - min.z) < e) normal = { x: 0, y: 0, z: -1 };
+        return { t, hit, normal };
+      }
+
+      function traceScene(rayOrigin, rayDir, scene) {
+        let best = null;
+        scene.shapes.forEach((shape) => {
+          let result = null;
+          if (shape.primitive === 'sphere') {
+            result = intersectSphere(rayOrigin, rayDir, shape.position, Math.max(0.2, shape.scale.x));
+          } else if (shape.primitive === 'box') {
+            result = intersectBox(rayOrigin, rayDir, shape.position, {
+              x: Math.max(0.2, shape.scale.x * 0.55),
+              y: Math.max(0.2, shape.scale.y * 0.55),
+              z: Math.max(0.2, shape.scale.z * 0.55)
+            });
+          } else if (shape.primitive === 'plane') {
+            result = intersectPlane(rayOrigin, rayDir, shape.position.y);
+          }
+          if (result && (!best || result.t < best.t)) best = { ...result, shape };
+        });
+        return best;
+      }
+
+      function shadeHit(rayDir, hitInfo, scene) {
+        const material = hitInfo.shape.material;
+        const lightDir = normalize(subVec(scene.light.position, hitInfo.hit));
+        const viewDir = normalize(mulVec(rayDir, -1));
+        const nDotL = Math.max(0, dot(hitInfo.normal, lightDir));
+        let color = addColor(mulColor(material.color, 0.18), mulColor(material.color, nDotL * scene.light.intensity));
+        const halfDir = normalize(addVec(lightDir, viewDir));
+        const specPower = lerp(18, 180, 1 - material.roughness);
+        const spec = Math.pow(Math.max(0, dot(hitInfo.normal, halfDir)), specPower);
+        color = addColor(color, mulColor(mixColor({ r: 1, g: 1, b: 1 }, material.color, material.metallic), spec * lerp(0.18, 0.9, material.metallic + 0.18)));
+        const fresnel = Math.pow(1 - Math.max(0, dot(hitInfo.normal, viewDir)), 5);
+        color = addColor(color, mulColor(skyColor(reflect(rayDir, hitInfo.normal)), lerp(0.05, 0.65, fresnel + material.metallic * 0.5)));
+        color = addColor(color, mulColor(material.color, material.emission));
+        if (hitInfo.shape.primitive === 'plane') {
+          const stripe = 0.5 + 0.5 * Math.sin(hitInfo.hit.x * 2.6) * Math.cos(hitInfo.hit.z * 2.2);
+          color = mixColor(color, mulColor({ r: 0.82, g: 0.85, b: 0.9 }, 0.65 + stripe * 0.18), 0.22);
+        }
+        return color;
+      }
+
+      function tonemap(c, exposure) {
+        const mapped = {
+          r: 1 - Math.exp(-c.r * exposure),
+          g: 1 - Math.exp(-c.g * exposure),
+          b: 1 - Math.exp(-c.b * exposure)
+        };
+        return {
+          r: Math.pow(clamp(mapped.r, 0, 1), 0.92),
+          g: Math.pow(clamp(mapped.g, 0, 1), 0.92),
+          b: Math.pow(clamp(mapped.b, 0, 1), 0.92)
+        };
+      }
+
+      function drawGameView() {
+        resizeCanvasToDisplaySize(gameCanvas);
+        const width = gameCanvas.width;
+        const height = gameCanvas.height;
+        const scene = buildRuntimeScene();
+        const renderWidth = Math.min(220, width);
+        const renderHeight = Math.max(100, Math.floor(renderWidth * (height / width)));
+        const camera = scene.camera;
+        const aspect = renderWidth / renderHeight;
+        const fovScale = Math.tan((camera.fov * Math.PI / 180) * 0.5);
+        const cosY = Math.cos(camera.rotationY);
+        const sinY = Math.sin(camera.rotationY);
+        const buffer = new Uint8ClampedArray(renderWidth * renderHeight * 4);
+
+        for (let y = 0; y < renderHeight; y += 1) {
+          for (let x = 0; x < renderWidth; x += 1) {
+            const u = ((x + 0.5) / renderWidth) * 2 - 1;
+            const v = 1 - ((y + 0.5) / renderHeight) * 2;
+            const dirCamera = normalize({ x: u * aspect * fovScale, y: v * fovScale, z: -1 });
+            const rayDir = normalize({
+              x: dirCamera.x * cosY - dirCamera.z * sinY,
+              y: dirCamera.y,
+              z: dirCamera.x * sinY + dirCamera.z * cosY
+            });
+            const hit = traceScene(camera.position, rayDir, scene);
+            let color = hit ? shadeHit(rayDir, hit, scene) : skyColor(rayDir);
+            color = tonemap(color, camera.exposure);
+            const idx = (y * renderWidth + x) * 4;
+            buffer[idx] = Math.floor(color.r * 255);
+            buffer[idx + 1] = Math.floor(color.g * 255);
+            buffer[idx + 2] = Math.floor(color.b * 255);
+            buffer[idx + 3] = 255;
+          }
+        }
+
+        rtCanvas.width = renderWidth;
+        rtCanvas.height = renderHeight;
+        const tempImage = rtCtx.createImageData(renderWidth, renderHeight);
+        tempImage.data.set(buffer);
+        rtCtx.putImageData(tempImage, 0, 0);
+        gameCtx.clearRect(0, 0, width, height);
+        gameCtx.imageSmoothingEnabled = true;
+        gameCtx.drawImage(rtCanvas, 0, 0, width, height);
+        gameCtx.strokeStyle = 'rgba(255,255,255,0.45)';
+        gameCtx.beginPath();
+        gameCtx.moveTo(width * 0.5 - 10, height * 0.5);
+        gameCtx.lineTo(width * 0.5 + 10, height * 0.5);
+        gameCtx.moveTo(width * 0.5, height * 0.5 - 10);
+        gameCtx.lineTo(width * 0.5, height * 0.5 + 10);
+        gameCtx.stroke();
+      }
+
+      function updateRuntime(dt) {
+        if (state.mode !== 'play' || state.runtime.paused) return;
+        state.world.entities.forEach((entity) => {
+          if (!entity.enabled || !entity.components.script || !entity.components.transform) return;
+          if (entity.components.script.type === 'spin') {
+            entity.components.transform.rotation.y += entity.components.script.speed * dt;
+          }
+        });
+      }
+
+      function renderLoop(now) {
+        if (!renderLoop.last) renderLoop.last = now;
+        const dt = Math.min(0.05, (now - renderLoop.last) / 1000);
+        renderLoop.last = now;
+        const start = performance.now();
+        updateRuntime(dt);
+        drawSceneView();
+        drawGameView();
+        state.runtime.frameMs = performance.now() - start;
+        updateStatusLabels();
+        requestAnimationFrame(renderLoop);
+      }
+
+      function setPlayMode(mode) {
+        if (mode === 'run') {
+          state.mode = 'play';
+          state.runtime.paused = false;
+          addLog('success', 'Entered play mode');
+        } else if (mode === 'pause') {
+          if (state.mode === 'play') {
+            state.runtime.paused = !state.runtime.paused;
+            addLog('warn', state.runtime.paused ? 'Paused play mode' : 'Resumed play mode');
+          }
+        } else if (mode === 'stop') {
+          state.mode = 'editor';
+          state.runtime.paused = false;
+          bootstrapScene();
+          addLog('info', 'Stopped play mode and restored starter scene');
+        }
+        renderAllPanels();
+      }
+
+      function duplicateSelectedEntity() {
+        const entity = getSelectedEntity();
+        if (!entity) return;
+        const copy = deepClone(entity);
+        copy.id = state.nextEntityId++;
+        copy.name = `${entity.name} Copy`;
+        if (copy.components.transform) {
+          copy.components.transform.position.x += 0.5;
+          copy.components.transform.position.z += 0.5;
+        }
+        state.world.entities.push(copy);
+        state.selectedEntityId = copy.id;
+        renderAllPanels();
+        addLog('success', `Duplicated entity "${entity.name}"`);
+      }
+
+      function addStarterEntity() {
+        const entity = createEntity('New Sphere', {
+          transform: {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: { x: 0.7, y: 0.7, z: 0.7 }
+          },
+          mesh: { primitive: 'sphere' },
+          material: { color: '#9dd9ff', roughness: 0.22, metallic: 0.08, emission: 0.0 }
+        });
+        state.selectedEntityId = entity.id;
+        renderAllPanels();
+        addLog('success', 'Added a new starter entity');
+      }
+
+      function focusSelection() {
+        const entity = getSelectedEntity();
+        if (!entity || !entity.components.transform) return;
+        state.sceneView.target = deepClone(entity.components.transform.position);
+        state.sceneView.distance = clamp(state.sceneView.distance * 0.8, 2.4, 20);
+        addLog('info', `Focused Scene view on "${entity.name}"`);
+      }
+
+      function findEntityAtScenePosition(clientX, clientY) {
+        const basis = getSceneCameraBasis();
+        let best = null;
+        let bestDist = Infinity;
+        state.world.entities.forEach((entity) => {
+          if (!entity.components.transform) return;
+          const pos = worldToScreen(entity.components.transform.position, sceneCanvas, basis);
+          if (!pos) return;
+          const rect = sceneCanvas.getBoundingClientRect();
+          const px = clientX - rect.left;
+          const py = clientY - rect.top;
+          const d = Math.hypot(pos.x - px, pos.y - py);
+          if (d < 18 && d < bestDist) {
+            best = entity;
+            bestDist = d;
+          }
+        });
+        return best;
+      }
+
+      function setTool(name) {
+        state.tool = name;
+        updateStatusLabels();
+      }
+
+      toolMoveBtn.addEventListener('click', () => setTool('move'));
+      toolRotateBtn.addEventListener('click', () => setTool('rotate'));
+      toolScaleBtn.addEventListener('click', () => setTool('scale'));
+      focusBtn.addEventListener('click', focusSelection);
+
+      sceneCanvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+      sceneCanvas.addEventListener('mousedown', (event) => {
+        const hit = findEntityAtScenePosition(event.clientX, event.clientY);
+        if (event.button === 2) {
+          state.pointer.action = 'pan';
+          state.pointer.startX = event.clientX;
+          state.pointer.startY = event.clientY;
+          state.pointer.startTarget = deepClone(state.sceneView.target);
+          return;
+        }
+        if (event.altKey || event.button === 1) {
+          state.pointer.action = 'orbit';
+          state.pointer.startX = event.clientX;
+          state.pointer.startY = event.clientY;
+          state.pointer.startYaw = state.sceneView.yaw;
+          state.pointer.startPitch = state.sceneView.pitch;
+          return;
+        }
+        if (hit) {
+          state.selectedEntityId = hit.id;
+          if (hit.components.transform) {
+            state.pointer.entityId = hit.id;
+            state.pointer.startPos = deepClone(hit.components.transform.position);
+            state.pointer.startRotationY = hit.components.transform.rotation.y;
+            state.pointer.startScale = deepClone(hit.components.transform.scale);
+            if (state.tool === 'move') {
+              const ray = sceneRayFromScreen(event.clientX, event.clientY);
+              const planeHit = rayPlaneIntersectionY(ray, hit.components.transform.position.y);
+              state.pointer.action = planeHit ? 'move-entity' : null;
+              state.pointer.startTarget = planeHit;
+            } else if (state.tool === 'rotate') {
+              state.pointer.action = 'rotate-entity';
+            } else if (state.tool === 'scale') {
+              state.pointer.action = 'scale-entity';
+            }
+          }
+        } else {
+          state.selectedEntityId = null;
+        }
+        renderAllPanels();
+      });
+
+      window.addEventListener('mousemove', (event) => {
+        if (!state.pointer.action) return;
+        const dx = event.clientX - state.pointer.startX;
+        const dy = event.clientY - state.pointer.startY;
+        if (state.pointer.action === 'orbit') {
+          state.sceneView.yaw = state.pointer.startYaw - dx * 0.008;
+          state.sceneView.pitch = clamp(state.pointer.startPitch - dy * 0.008, -1.35, 0.1);
+        } else if (state.pointer.action === 'pan') {
+          const basis = getSceneCameraBasis();
+          const scale = state.sceneView.distance * 0.0028;
+          state.sceneView.target = addVec(state.pointer.startTarget, addVec(mulVec(basis.right, -dx * scale), mulVec(basis.up, dy * scale)));
+        } else if (state.pointer.action === 'move-entity') {
+          const entity = getEntityById(state.pointer.entityId);
+          if (!entity || !entity.components.transform) return;
+          const ray = sceneRayFromScreen(event.clientX, event.clientY);
+          const planeHit = rayPlaneIntersectionY(ray, entity.components.transform.position.y);
+          if (!planeHit || !state.pointer.startTarget) return;
+          const delta = subVec(planeHit, state.pointer.startTarget);
+          entity.components.transform.position.x = state.pointer.startPos.x + delta.x;
+          entity.components.transform.position.z = state.pointer.startPos.z + delta.z;
+          renderAllPanels();
+        } else if (state.pointer.action === 'rotate-entity') {
+          const entity = getEntityById(state.pointer.entityId);
+          if (!entity || !entity.components.transform) return;
+          entity.components.transform.rotation.y = state.pointer.startRotationY + dx * 0.4;
+          renderAllPanels();
+        } else if (state.pointer.action === 'scale-entity') {
+          const entity = getEntityById(state.pointer.entityId);
+          if (!entity || !entity.components.transform) return;
+          const factor = clamp(1 + dx * 0.01, 0.2, 4);
+          entity.components.transform.scale.x = clamp(state.pointer.startScale.x * factor, 0.1, 20);
+          entity.components.transform.scale.y = clamp(state.pointer.startScale.y * factor, 0.1, 20);
+          entity.components.transform.scale.z = clamp(state.pointer.startScale.z * factor, 0.1, 20);
+          renderAllPanels();
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        state.pointer.action = null;
+      });
+
+      sceneCanvas.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        state.sceneView.distance = clamp(state.sceneView.distance * (1 + Math.sign(event.deltaY) * 0.08), 2.2, 28);
+      }, { passive: false });
+
+      function bindSplitter(element) {
+        const split = element.dataset.split;
+        element.addEventListener('mousedown', (event) => {
+          if (!split) return;
+          element.classList.add('active');
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const startLeft = parseFloat(getComputedStyle(root).getPropertyValue('--left-panel'));
+          const startRight = parseFloat(getComputedStyle(root).getPropertyValue('--right-panel'));
+          const startBottom = parseFloat(getComputedStyle(root).getPropertyValue('--bottom-panel'));
+          const startCenter = parseFloat(getComputedStyle(root).getPropertyValue('--center-split'));
+
+          function move(e) {
+            if (split === 'left') {
+              root.style.setProperty('--left-panel', `${clamp(startLeft + (e.clientX - startX), 180, 420)}px`);
+            } else if (split === 'right') {
+              root.style.setProperty('--right-panel', `${clamp(startRight - (e.clientX - startX), 240, 460)}px`);
+            } else if (split === 'bottom') {
+              root.style.setProperty('--bottom-panel', `${clamp(startBottom - (e.clientY - startY), 140, 360)}px`);
+            } else if (split === 'center') {
+              const next = clamp(startCenter + ((e.clientX - startX) / Math.max(500, window.innerWidth - 700)), 0.35, 0.72);
+              root.style.setProperty('--center-split', `${next}fr`);
+            }
+          }
+
+          function up() {
+            element.classList.remove('active');
+            window.removeEventListener('mousemove', move);
+            window.removeEventListener('mouseup', up);
+          }
+
+          window.addEventListener('mousemove', move);
+          window.addEventListener('mouseup', up);
+        });
+      }
+
+      document.querySelectorAll('.splitter[data-split]').forEach(bindSplitter);
+
+      runBtn.addEventListener('click', () => setPlayMode('run'));
+      pauseBtn.addEventListener('click', () => setPlayMode('pause'));
+      stopBtn.addEventListener('click', () => setPlayMode('stop'));
+      addEntityBtn.addEventListener('click', addStarterEntity);
+      duplicateBtn.addEventListener('click', duplicateSelectedEntity);
+
+      bootstrapScene();
+      renderAssets();
+      addLog('success', 'Nova Engine Editor booted');
+      addLog('info', 'Unity-style layout added with split resizing and Scene/Game docks');
+      addLog('info', 'Scene navigation: Alt+drag orbit, right drag pan, wheel zoom');
+      renderAllPanels();
+      requestAnimationFrame(renderLoop);
+    })();
+  </script>
+</body>
+</html>
